@@ -23,7 +23,7 @@ def main():
 
 
     # Random gaussians
-    bd = 4.
+    bd = 2.
     be = 0.01
 
     mu = bd * (torch.rand(N, 3, device=device,) - 0.5)
@@ -82,7 +82,6 @@ def main():
             camera_queue = copy.copy(cameras)
             random.shuffle(camera_queue)
 
-        # camera = copy.copy(cameras[10])
         camera_ = camera_queue.pop()
         viewmat = torch.from_numpy(camera_.w2c).to(dtype=torch.float).to(renderer.device)
         gt_image = image_path_to_tensor(camera_.image_path)

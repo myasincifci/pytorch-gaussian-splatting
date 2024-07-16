@@ -41,7 +41,7 @@ def main():
     figure, ax = plt.subplots()
     im1 = ax.matshow(pred.detach().cpu())
 
-    for iter in tqdm(range(100)):
+    for iter in tqdm(range(1_000)):
         optimizer.zero_grad()
 
         pred = renderer(camera, gt_image)

@@ -237,13 +237,13 @@ class Renderer(nn.Module):
         x = x.T.view(-1, 1, 2)
         m = m.view(1, 1, 2)
 
-        S_inv = self._inv_2d(S)
+        S_inv = torch.inverse(S + 1e-6 * torch.eye(S.size(-1)).cuda()) # self._inv_2d(S)
 
         x_m = x - m
 
         A = x_m @ S_inv
 
-        result = torch.exp(-(1/2)* A @ x_m.permute(0,2,1))
+        result = torch.exp(-0.5 * A @ x_m.permute(0,2,1))
 
         return result
     
@@ -275,6 +275,7 @@ class Renderer(nn.Module):
             mu_2d[tile], cov_2d[tile]).permute((1,0,2,3)).squeeze(dim=(2,3))
 
         P_ = torch.nan_to_num(P)
+        O = torch.nn.functional.sigmoid(O)
 
         A = O * P_
         A[A<0.001] = 0.
