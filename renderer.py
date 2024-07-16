@@ -43,7 +43,7 @@ class Renderer(nn.Module):
                 if tile_map[y][x]:
                     self._rasterize_tile_fast(
                         tile_map,
-                        xys=mu_2d, covs=cov_2d, cols=cols, opcs=opcs,
+                        mu_2d=mu_2d, cov_2d=cov_2d, cols=cols, opcs=opcs,
                         x_coord=x, y_coord=y,
                         H=camera['H'], W=camera['W'],
                         out_img=img
@@ -243,12 +243,14 @@ class Renderer(nn.Module):
 
         A = x_m @ S_inv
 
-        return torch.exp(-(1/2)* A @ x_m.permute(0,2,1))
+        result = torch.exp(-(1/2)* A @ x_m.permute(0,2,1))
+
+        return result
     
     def _rasterize_tile_fast(
         self,
         tile_map,
-        xys, covs, cols, opcs,
+        mu_2d, cov_2d, cols, opcs,
         x_coord, y_coord,
         H, W,
         out_img
@@ -263,21 +265,23 @@ class Renderer(nn.Module):
 
         tile = tile_map[y_coord][x_coord]
 
-        xys = xys.clamp(min=0, max=float(H))
+        # mu_2d = mu_2d.clamp(min=0, max=float(H))
 
         C = cols[None, tile].clamp(min=0.0001, max=1.)
         O = torch.nn.functional.sigmoid(opcs[None, tile])
 
         P = torch.vmap(self._g_fast, in_dims=0)(
             pixels_xy[None].expand((len(tile), pixels_xy.shape[0], pixels_xy.shape[1])), 
-            xys[tile], covs[tile]).permute((1,0,2,3)).squeeze(dim=(2,3))
+            mu_2d[tile], cov_2d[tile]).permute((1,0,2,3)).squeeze(dim=(2,3))
 
-        A = O * P
+        P_ = torch.nan_to_num(P)
+
+        A = O * P_
         A[A<0.001] = 0.
         A = A.clip(max=0.99)
 
         D = (1 - A)
-        D = torch.cat((torch.ones(A.shape[0], 1, device=xys.device), D[:,:-1]), dim=1).contiguous()
+        D = torch.cat((torch.ones(A.shape[0], 1, device=mu_2d.device), D[:,:-1]), dim=1).contiguous()
         D = D
         D = D.cumprod(dim=1)
 
@@ -285,5 +289,6 @@ class Renderer(nn.Module):
         RGB = RGB * D[:,:,None]
 
         RGB = RGB.sum(dim=1).clamp(min=0.0001, max=1.)
+        RGB_ = RGB.view(self.tile_size, self.tile_size, 3).permute(1,0,2)
 
-        out_img[y_min:y_max, x_min:x_max] = RGB.view(self.tile_size, self.tile_size, 3).permute(1,0,2)
+        out_img[y_min:y_max, x_min:x_max] = RGB_
