@@ -18,18 +18,18 @@ def image_path_to_tensor(image_path):
 
 def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    N = 10_000
+    N = 20_000
     W = H = 256
 
 
     # Random gaussians
-    bd = 2.
-    be = 0.01
+    bd = 2.3
+    be = 0.02
 
     mu = bd * (torch.rand(N, 3, device=device,) - 0.5)
-    scales = be * (torch.rand(N, 3, device=device,))
+    scales = be * (torch.ones(N, 3, device=device,))
     d = 3
-    cols = torch.rand(N, d, device=device,)
+    cols = torch.ones(N, d, device=device,) * 0.5
 
     u = torch.rand(N, 1, device=device)
     v = torch.rand(N, 1, device=device)
@@ -67,7 +67,7 @@ def main():
     gt_image = resize(gt_image).permute(1,2,0)
 
     criterion = torch.nn.L1Loss()
-    optimizer = torch.optim.Adam(params=renderer.parameters(), lr=1e-2)
+    optimizer = torch.optim.Adam(params=renderer.parameters(), lr=1e-3)
 
     pred = renderer(camera, gt_image)
 
@@ -105,7 +105,7 @@ def main():
         
         loss.backward()
 
-        torch.nn.utils.clip_grad_value_(renderer.parameters(), clip_value=10.0)
+        # torch.nn.utils.clip_grad_value_(renderer.parameters(), clip_value=10.0)
         for param in renderer.parameters():
             param.grad[param.grad.isnan()] = 0.
             param.grad[param.grad.isinf()] = 0.
