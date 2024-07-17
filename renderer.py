@@ -13,7 +13,7 @@ class Renderer(nn.Module):
         self.N = len(params['mu'])
         self.tile_size = tile_size
 
-    def forward(self, camera: Dict, gt: torch.Tensor):
+    def forward(self, camera: Dict,):
         # Project 3D-Gaussians to 2D
         (
             mu_2d,
@@ -28,7 +28,7 @@ class Renderer(nn.Module):
             fy=camera['focal'],
             cx=camera['W']/2,
             cy=camera['H']/2,
-            viewmat=camera['viewmat'],
+            viewmat=camera['viewmat'].to(self.device),
             H=camera['H'],
             W=camera['W']
         )
