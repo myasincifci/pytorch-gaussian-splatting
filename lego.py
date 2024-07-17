@@ -90,7 +90,7 @@ def get_test_view(root, index, W, H):
 
 def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    N = 20_000
+    N = 10_000
     W = H = 256
 
     params = init_parameters(N, device)   
@@ -112,7 +112,7 @@ def main():
 
     frames = []
     camera_queue = []
-    for iter in tqdm(range(150)):
+    for iter in tqdm(range(5_000)):
         view = get_view(scene, W, H, camera_queue)
 
         optimizer.zero_grad()

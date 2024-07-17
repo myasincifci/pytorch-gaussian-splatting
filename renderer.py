@@ -1,5 +1,4 @@
 from typing import Dict
-from tqdm import tqdm
 
 import torch
 from torch import nn
@@ -38,7 +37,7 @@ class Renderer(nn.Module):
 
         # Rasterize each tile
         img = torch.zeros((camera['H'], camera['W'], 3))
-        for y in tqdm(range(len(tile_map))):
+        for y in range(len(tile_map)):
             for x in range(len(tile_map[0])):
                 if tile_map[y][x]:
                     self._rasterize_tile_fast(
@@ -52,6 +51,7 @@ class Renderer(nn.Module):
         return img
 
     ### Project ##################################################################
+    @torch.compile
     def _P(self, f_x, f_y, h, w, n, f):
         P = torch.tensor([
             [2.*f_x/w, 0., 0., 0.],
@@ -62,6 +62,7 @@ class Renderer(nn.Module):
 
         return P
 
+    @torch.compile
     def _J(self, f_x, f_y, t_x, t_y, t_z):
         N = len(t_x)
         J = torch.zeros((N,2,3), device=self.device)
@@ -72,6 +73,7 @@ class Renderer(nn.Module):
 
         return J
 
+    @torch.compile
     def _quat_to_rot(self, quaternion):
         N = quaternion.shape[0]
         x, y, z, w = quaternion[:,0].clone() ,quaternion[:,1].clone() ,quaternion[:,2].clone() ,quaternion[:,3].clone(),
@@ -130,6 +132,7 @@ class Renderer(nn.Module):
         return xys[ind], covs[ind], depths[ind], self.params['cols'][ind], self.params['opcs'][ind]
     
     ### Tile #######################################################################
+    @torch.compile
     def _get_eigenvalues(self, cov):
         a = cov[:,0,0]; b = cov[:,0,1]; d = cov[:,1,1]
 
@@ -144,6 +147,7 @@ class Renderer(nn.Module):
         s = 3
         return s * torch.sqrt(l1), s * torch.sqrt(l2)
 
+    @torch.compile
     def _get_box(self, mu, cov):
         N = len(mu)
 
@@ -183,10 +187,41 @@ class Renderer(nn.Module):
 
         return R
 
+    @torch.compile
     def _get_bounding_boxes(self, xys, covs):
-        rot = self._get_rotation(covs)
+        # rot = self._get_rotation(covs)
+        # theta = self._get_orientation(covs)
 
-        box = self._get_box(xys, covs)
+        a = covs[:,0,0]; b = covs[:,0,1]; c = covs[:,1,1]
+        eigs = self._get_eigenvalues(covs)
+        l1 = eigs[0]
+
+        theta = torch.zeros_like(a)
+        theta[(b == 0) & (a >= c)] = torch.pi/2
+        theta[b != 0] = torch.atan2(l1 - a, b)
+
+        cos = torch.cos(theta)
+        sin = torch.sin(theta)
+
+        rot = torch.empty((len(cos),2,2))
+        rot[:,0,0] = cos
+        rot[:,0,1] = -sin
+        rot[:,1,0] = sin
+        rot[:,1,1] = cos
+
+        N = len(xys)
+
+        r1, r2 = self._get_radii(covs)
+
+        box = torch.empty((N, 4, 2))
+
+        box[:,0,0] = xys[:,0] - r1; box[:,0,1] = xys[:,1] + r2
+        box[:,1,0] = xys[:,0] + r1; box[:,1,1] = xys[:,1] + r2
+        box[:,3,0] = xys[:,0] - r1; box[:,2,1] = xys[:,1] - r2
+        box[:,2,0] = xys[:,0] + r1; box[:,3,1] = xys[:,1] - r2
+
+        # box = self._get_box(xys, covs)
+
         box_mean = box.mean(dim=1, keepdim=True)
 
         rot_box = (rot @ (box - box_mean).permute((0,2,1))).permute((0,2,1)) + box_mean
@@ -229,6 +264,7 @@ class Renderer(nn.Module):
 
         return A_inv
 
+    @torch.compile
     def _g_fast(self, x, m, S):
         ''' x: (h*w, 2) matrix
             m: (2, 1) mean
