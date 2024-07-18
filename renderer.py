@@ -51,7 +51,6 @@ class Renderer(nn.Module):
         return img
 
     ### Project ##################################################################
-    @torch.compile
     def _P(self, f_x, f_y, h, w, n, f):
         P = torch.tensor([
             [2.*f_x/w, 0., 0., 0.],
@@ -62,7 +61,6 @@ class Renderer(nn.Module):
 
         return P
 
-    @torch.compile
     def _J(self, f_x, f_y, t_x, t_y, t_z):
         N = len(t_x)
         J = torch.zeros((N,2,3), device=self.device)
@@ -73,7 +71,6 @@ class Renderer(nn.Module):
 
         return J
 
-    @torch.compile
     def _quat_to_rot(self, quaternion):
         N = quaternion.shape[0]
         x, y, z, w = quaternion[:,0].clone() ,quaternion[:,1].clone() ,quaternion[:,2].clone() ,quaternion[:,3].clone(),
@@ -132,7 +129,6 @@ class Renderer(nn.Module):
         return xys[ind], covs[ind], depths[ind], self.params['cols'][ind], self.params['opcs'][ind]
     
     ### Tile #######################################################################
-    @torch.compile
     def _get_eigenvalues(self, cov):
         a = cov[:,0,0]; b = cov[:,0,1]; d = cov[:,1,1]
 
@@ -147,7 +143,6 @@ class Renderer(nn.Module):
         s = 3
         return s * torch.sqrt(l1), s * torch.sqrt(l2)
 
-    @torch.compile
     def _get_box(self, mu, cov):
         N = len(mu)
 
@@ -187,7 +182,6 @@ class Renderer(nn.Module):
 
         return R
 
-    @torch.compile
     def _get_bounding_boxes(self, xys, covs):
         # rot = self._get_rotation(covs)
         # theta = self._get_orientation(covs)
@@ -264,7 +258,6 @@ class Renderer(nn.Module):
 
         return A_inv
 
-    @torch.compile
     def _g_fast(self, x, m, S):
         ''' x: (h*w, 2) matrix
             m: (2, 1) mean

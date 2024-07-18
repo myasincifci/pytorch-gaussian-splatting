@@ -35,7 +35,7 @@ def main():
     criterion = torch.nn.L1Loss()
     optimizer = torch.optim.Adam(params=renderer.parameters(), lr=1e-2)
 
-    pred = renderer(camera, gt_image)
+    pred = renderer(camera)
 
     plt.ion()
     figure, ax = plt.subplots()
@@ -44,7 +44,7 @@ def main():
     for iter in tqdm(range(1_000)):
         optimizer.zero_grad()
 
-        pred = renderer(camera, gt_image)
+        pred = renderer(camera)
 
         im1.set_data(pred.detach().cpu())
         figure.canvas.draw()
@@ -55,9 +55,9 @@ def main():
         
         loss.backward()
 
-        torch.nn.utils.clip_grad_value_(renderer.parameters(), clip_value=1.0)
-        for param in renderer.parameters():
-            param.grad[param.grad.isnan()] = 0.
+        # torch.nn.utils.clip_grad_value_(renderer.parameters(), clip_value=1.0)
+        # for param in renderer.parameters():
+        #     param.grad[param.grad.isnan()] = 0.
 
         optimizer.step()
 
